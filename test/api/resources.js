@@ -802,6 +802,38 @@ describe("API: resource loading configuration", () => {
       resources: new MyResourceLoaderFunction()
     }), TypeError);
   });
+
+  it("should parse css with @layer", { slow: 500 }, async () => {
+    const sourceString = `
+      @import "/fonts/ahem.css";
+
+      @layer chassis { 
+        body {
+          color: blue;
+        }
+      }
+    `;
+    const url = await resourceServer(
+      { "Content-Type": "text/css", "Content-Length": sourceString.length },
+      sourceString
+    );
+    const dom = new JSDOM(``, { resources: "usable" });
+
+    const element = dom.window.document.createElement("link");
+    setUpLoadingAsserts(element);
+    element.rel = "stylesheet";
+    element.href = url;
+    dom.window.document.body.appendChild(element);
+
+    await assertLoaded(element);
+
+    // I think this should actually be "rgb(0, 0, 255)" per spec. It's fine to change the test in the future if we
+    // fix that.
+    assert.equal(
+      dom.window.getComputedStyle(dom.window.document.body).color,
+      "rgb(0, 0, 255)"
+    );
+  });
 });
 
 async function resourceServer(headers, body, { statusCode = 200 } = {}) {
